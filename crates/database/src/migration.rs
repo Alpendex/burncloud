@@ -271,6 +271,7 @@ impl MigrationRunner {
                 // (SQLite path) or when a table/index was already created.
                 if msg.contains("duplicate column")
                     || msg.contains("already has a column named")
+                    || msg.contains("already another table or index")
                     || msg.contains("already exists")
                 {
                     // Expected: migration was partially or fully applied before

@@ -3,7 +3,7 @@
 -- These columns store 0/1 integers anyway, so just change the declared type.
 
 -- channel_protocol_configs.is_default
-CREATE TABLE channel_protocol_configs_new (
+CREATE TABLE IF NOT EXISTS channel_protocol_configs_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     channel_type INTEGER NOT NULL,
     api_version TEXT NOT NULL,
@@ -19,23 +19,21 @@ CREATE TABLE channel_protocol_configs_new (
 );
 
 INSERT INTO channel_protocol_configs_new SELECT * FROM channel_protocol_configs;
-DROP TABLE channel_protocol_configs;
+DROP TABLE IF EXISTS channel_protocol_configs;
 ALTER TABLE channel_protocol_configs_new RENAME TO channel_protocol_configs;
 
 -- channel_abilities.enabled
-CREATE TABLE channel_abilities_new (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    group_name TEXT NOT NULL,
-    model TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS channel_abilities_new (
+    "group" VARCHAR(64) NOT NULL,
+    model VARCHAR(255) NOT NULL,
     channel_id INTEGER NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
-    priority INTEGER NOT NULL DEFAULT 0,
-    weight INTEGER NOT NULL DEFAULT 1,
-    created_at INTEGER,
-    updated_at INTEGER,
-    FOREIGN KEY (channel_id) REFERENCES channel_providers(id)
+    priority INTEGER DEFAULT 0,
+    weight INTEGER DEFAULT 0,
+    tag TEXT,
+    PRIMARY KEY ("group", model, channel_id)
 );
 
 INSERT INTO channel_abilities_new SELECT * FROM channel_abilities;
-DROP TABLE channel_abilities;
+DROP TABLE IF EXISTS channel_abilities;
 ALTER TABLE channel_abilities_new RENAME TO channel_abilities;
