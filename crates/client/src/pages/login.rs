@@ -120,8 +120,8 @@ pub fn LoginPage() -> Element {
                         label { class: "login-input-label", {t(*lang.read(), "login.form.email_label")} }
                         div { class: "login-input",
                             input {
-                                r#type: "email",
-                                placeholder: "you@burncloud.com",
+                                r#type: "text",
+                                placeholder: "Enter your username",
                                 value: "{email}",
                                 oninput: move |e: Event<FormData>| email.set(e.value()),
                             }

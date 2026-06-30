@@ -10,6 +10,7 @@ use crate::pages::{
     forgot_password::ForgotPasswordPage,
     home::{HomePage, Root},
     login::LoginPage,
+    oauth_callback::OAuthCallbackPage,
     logs::LogPage,
     models::ChannelPage,
     monitor::ServiceMonitor,
@@ -40,6 +41,8 @@ pub enum Route {
     ForgotPasswordPage {},
     #[route("/reset-password?:token")]
     ResetPasswordPage { token: Option<String> },
+    #[route("/oauth/callback?:query")]
+    OAuthCallbackPage { query: Option<String> },
     #[end_layout]
     #[layout(Layout)]
     #[route("/console/dashboard")]

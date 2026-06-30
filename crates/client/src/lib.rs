@@ -236,6 +236,8 @@ pub fn liveview_router(_db: Arc<Database>) -> Router {
         // Auth recovery routes (forgot/reset password)
         .route("/forgot-password", html_handler.clone())
         .route("/reset-password", html_handler.clone())
+        // OAuth callback page
+        .route("/oauth/callback", html_handler.clone())
         // Console Routes (SPA Mode)
         // Axum's catch-all {*path} requires at least one path segment.
         // We must explicitly handle /console and /console/ to avoid fallback to router_app.

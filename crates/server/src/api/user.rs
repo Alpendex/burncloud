@@ -8,6 +8,7 @@ use axum::{
     Router,
 };
 use burncloud_service_user::UserServiceError;
+use burncloud_database_user::UserDatabase;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -26,7 +27,6 @@ pub struct LoginDto {
 #[derive(Deserialize)]
 pub struct TopupDto {
     pub user_id: String,
-    /// Amount in nanodollars ($1 = 1_000_000_000)
     pub amount: i64,
     #[serde(default)]
     pub currency: Option<String>,
@@ -64,6 +64,22 @@ struct UserSummary {
     group: &'static str,
 }
 
+#[derive(Deserialize)]
+pub struct CheckUsernameQuery {
+    username: String,
+}
+
+#[derive(Serialize)]
+struct UserProfile {
+    id: String,
+    username: String,
+    email: Option<String>,
+    roles: Vec<String>,
+    status: i32,
+    balance_usd: i64,
+    preferred_currency: Option<String>,
+}
+
 pub fn routes() -> Router<AppState> {
     let authenticated = Router::new()
         .route("/console/api/user/recharges", get(list_recharges))
@@ -74,6 +90,7 @@ pub fn routes() -> Router<AppState> {
         .route("/console/api/user/login", post(login))
         .route("/console/api/user/topup", post(topup))
         .route("/console/api/user/check_username", get(check_username))
+        .route("/console/api/user/profile", get(user_profile))
         .merge(authenticated)
 }
 
@@ -111,7 +128,6 @@ async fn register(
                 .get_user_roles(&state.db, &user_id)
                 .await
                 .unwrap_or_default();
-
             match state
                 .user_service
                 .generate_token(&user_id, &payload.username)
@@ -129,14 +145,32 @@ async fn register(
                 }
             }
         }
-        Err(UserServiceError::UserAlreadyExists) => err("用户名已存在").into_response(),
+        Err(UserServiceError::UserAlreadyExists) => err("Username already exists").into_response(),
         Err(e) => err(e).into_response(),
     }
 }
 
-#[derive(Deserialize)]
-pub struct CheckUsernameQuery {
-    username: String,
+#[tracing::instrument(skip_all)]
+async fn user_profile(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+) -> impl IntoResponse {
+    match UserDatabase::get_user_by_id(&state.db, &claims.sub).await {
+        Ok(Some(user)) => {
+            let roles = state.user_service.get_user_roles(&state.db, &user.id).await.unwrap_or_default();
+            ok(UserProfile {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                roles,
+                status: user.status,
+                balance_usd: user.balance_usd,
+                preferred_currency: user.preferred_currency,
+            }).into_response()
+        }
+        Ok(None) => err("User not found").into_response(),
+        Err(e) => err(e).into_response(),
+    }
 }
 
 async fn check_username(
@@ -184,23 +218,16 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginDto>) -> 
     }
 }
 
-/// Persist minimal client state to `~/.burncloud/client_state.json` so the
-/// desktop client can resume an authenticated session after restart.
-/// File is created with 0o600 permissions on Unix (owner-only read/write).
 fn persist_client_state(username: &str, token: &str) {
     use std::path::PathBuf;
-
     let dir = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".burncloud");
-
     let _ = std::fs::create_dir_all(&dir);
-
     let state = serde_json::json!({
         "last_username": username,
         "auth_token": token
     });
-
     if let Ok(content) = serde_json::to_string_pretty(&state) {
         let path = dir.join("client_state.json");
         if std::fs::write(&path, content).is_ok() {
@@ -224,11 +251,7 @@ async fn list_users(State(state): State<AppState>) -> impl IntoResponse {
                     .get_user_roles(&state.db, &u.id)
                     .await
                     .unwrap_or_default();
-                let role = roles
-                    .into_iter()
-                    .next()
-                    .unwrap_or_else(|| "user".to_string());
-
+                let role = roles.into_iter().next().unwrap_or_else(|| "user".to_string());
                 summaries.push(UserSummary {
                     id: u.id,
                     username: u.username,

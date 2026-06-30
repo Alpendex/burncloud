@@ -6,6 +6,7 @@ pub mod deploy;
 pub mod forgot_password;
 pub mod home;
 pub mod login;
+pub mod oauth_callback;
 pub mod logs;
 pub mod models;
 pub mod monitor;
